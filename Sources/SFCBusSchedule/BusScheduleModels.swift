@@ -1,11 +1,39 @@
 import Foundation
 
+public enum ScheduleType: String, Codable {
+    case weekday
+    case saturday
+    case sunday
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        self = ScheduleType(rawValue: rawValue) ?? .unknown
+    }
+}
+
+public enum RouteCode: String, Codable {
+    case sho19 = "sho19"
+    case sho23 = "sho23"
+    case sho24 = "sho24"
+    case sho25 = "sho25"
+    case sho28 = "sho28"
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        self = RouteCode(rawValue: rawValue) ?? .unknown
+    }
+}
+
 public struct BusSchedule: Codable, Identifiable {
     public let id: String
     public let time: Int
     public let minute: Int
-    public let scheduleType: String
-    public let routeCode: String
+    public let scheduleType: ScheduleType
+    public let routeCode: RouteCode
     public let routeName: String
     public let name: String
     public let origin: String
@@ -17,8 +45,8 @@ public struct BusSchedule: Codable, Identifiable {
         id: String,
         time: Int,
         minute: Int,
-        scheduleType: String,
-        routeCode: String,
+        scheduleType: ScheduleType,
+        routeCode: RouteCode,
         routeName: String,
         name: String,
         origin: String,
