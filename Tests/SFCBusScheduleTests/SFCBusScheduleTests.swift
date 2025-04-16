@@ -16,6 +16,7 @@ final class SFCBusScheduleTests {
         "origin": "湘南台駅西口",
         "destination": "慶応中高等部前",
         "via": "ツインライナー急行・南大山",
+        "sfc_direction": "to_sfc",
         "metadata": {
           "stops": [
             {
@@ -78,6 +79,7 @@ final class SFCBusScheduleTests {
         #expect(schedule.origin == "湘南台駅西口")
         #expect(schedule.destination == "慶応中高等部前")
         #expect(schedule.via == "ツインライナー急行・南大山")
+        #expect(schedule.sfcDirection == .toSFC)
         #expect(schedule.metadata.stops.count == 5)
     }
 

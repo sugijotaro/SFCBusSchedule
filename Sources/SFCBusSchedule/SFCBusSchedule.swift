@@ -1,6 +1,6 @@
 import Foundation
 
-public enum BusDirection: String {
+public enum BusDirection: String, Codable {
     case fromSFC = "from_sfc"
     case toSFC = "to_sfc"
 }
