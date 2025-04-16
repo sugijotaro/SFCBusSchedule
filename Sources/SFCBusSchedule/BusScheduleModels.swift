@@ -39,7 +39,55 @@ public struct BusSchedule: Codable, Identifiable {
     public let origin: String
     public let destination: String
     public let via: String
+    public let sfcDirection: BusDirection
     public let metadata: Metadata
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case time
+        case minute
+        case scheduleType
+        case routeCode
+        case routeName
+        case name
+        case origin
+        case destination
+        case via
+        case sfcDirection = "sfc_direction"
+        case metadata
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        time = try container.decode(Int.self, forKey: .time)
+        minute = try container.decode(Int.self, forKey: .minute)
+        scheduleType = try container.decode(ScheduleType.self, forKey: .scheduleType)
+        routeCode = try container.decode(RouteCode.self, forKey: .routeCode)
+        routeName = try container.decode(String.self, forKey: .routeName)
+        name = try container.decode(String.self, forKey: .name)
+        origin = try container.decode(String.self, forKey: .origin)
+        destination = try container.decode(String.self, forKey: .destination)
+        via = try container.decode(String.self, forKey: .via)
+        sfcDirection = try container.decode(BusDirection.self, forKey: .sfcDirection)
+        metadata = try container.decode(Metadata.self, forKey: .metadata)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(time, forKey: .time)
+        try container.encode(minute, forKey: .minute)
+        try container.encode(scheduleType, forKey: .scheduleType)
+        try container.encode(routeCode, forKey: .routeCode)
+        try container.encode(routeName, forKey: .routeName)
+        try container.encode(name, forKey: .name)
+        try container.encode(origin, forKey: .origin)
+        try container.encode(destination, forKey: .destination)
+        try container.encode(via, forKey: .via)
+        try container.encode(sfcDirection, forKey: .sfcDirection)
+        try container.encode(metadata, forKey: .metadata)
+    }
 
     public init(
         id: String,
@@ -52,6 +100,7 @@ public struct BusSchedule: Codable, Identifiable {
         origin: String,
         destination: String,
         via: String,
+        sfcDirection: BusDirection,
         metadata: Metadata
     ) {
         self.id = id
@@ -64,6 +113,7 @@ public struct BusSchedule: Codable, Identifiable {
         self.origin = origin
         self.destination = destination
         self.via = via
+        self.sfcDirection = sfcDirection
         self.metadata = metadata
     }
 }
