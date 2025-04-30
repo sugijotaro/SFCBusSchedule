@@ -152,4 +152,4 @@ public struct Arrival: Codable {
         self.time = time
         self.minute = minute
     }
-} 
+}
