@@ -17,7 +17,37 @@ public enum BusScheduleError: Error {
     case decodingError(any Error)
 }
 
+public enum DataSource {
+    case live
+    case cache
+}
+
+public struct BusScheduleResponse {
+    public let schedules: [BusSchedule]
+    public let source: DataSource
+}
+
 public struct SFCBusScheduleAPI {
+    static let cacheKeyPrefix = "sfc_bus_schedule_cache_"
+    
+    static func cacheKey(direction: BusDirection, day: ScheduleDay) -> String {
+        return "\(cacheKeyPrefix)\(direction.rawValue)_\(day.rawValue)"
+    }
+    
+    static func saveToCache(_ schedules: [BusSchedule], direction: BusDirection, day: ScheduleDay) {
+        if let encoded = try? JSONEncoder().encode(schedules) {
+            UserDefaults.standard.set(encoded, forKey: cacheKey(direction: direction, day: day))
+        }
+    }
+    
+    static func loadFromCache(direction: BusDirection, day: ScheduleDay) -> [BusSchedule]? {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey(direction: direction, day: day)),
+              let schedules = try? JSONDecoder().decode([BusSchedule].self, from: data) else {
+            return nil
+        }
+        return schedules
+    }
+
     public static func makeURL(direction: BusDirection, day: ScheduleDay) -> URL? {
         URL(string: "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/\(direction.rawValue)_\(day.rawValue).json")
     }
@@ -25,7 +55,7 @@ public struct SFCBusScheduleAPI {
     public static func fetchSchedule(
         direction: BusDirection,
         day: ScheduleDay
-    ) async throws -> [BusSchedule] {
+    ) async throws -> BusScheduleResponse {
         guard let url = makeURL(direction: direction, day: day) else {
             throw BusScheduleError.invalidURL
         }
@@ -33,10 +63,14 @@ public struct SFCBusScheduleAPI {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let schedules = try JSONDecoder().decode([BusSchedule].self, from: data)
-            return schedules
+            saveToCache(schedules, direction: direction, day: day)
+            return BusScheduleResponse(schedules: schedules, source: .live)
         } catch let error as DecodingError {
             throw BusScheduleError.decodingError(error)
         } catch {
+            if let cachedSchedules = loadFromCache(direction: direction, day: day) {
+                return BusScheduleResponse(schedules: cachedSchedules, source: .cache)
+            }
             throw BusScheduleError.networkError(error)
         }
     }
