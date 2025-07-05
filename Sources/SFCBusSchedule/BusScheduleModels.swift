@@ -1,15 +1,41 @@
 import Foundation
 
-public enum ScheduleType: String, Codable {
+public enum ScheduleType: Codable, Hashable {
     case weekday
     case saturday
     case sunday
+    case special(String)
     case unknown
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
-        self = ScheduleType(rawValue: rawValue) ?? .unknown
+        switch rawValue {
+        case "weekday": self = .weekday
+        case "saturday": self = .saturday
+        case "sunday": self = .sunday
+        default:
+            if rawValue.starts(with: "special_") {
+                self = .special(rawValue)
+            } else {
+                self = .unknown
+            }
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(stringValue)
+    }
+
+    public var stringValue: String {
+        switch self {
+        case .weekday: return "weekday"
+        case .saturday: return "saturday"
+        case .sunday: return "sunday"
+        case .special(let type): return type
+        case .unknown: return "unknown"
+        }
     }
 }
 
@@ -151,5 +177,18 @@ public struct Arrival: Codable {
     public init(time: Int, minute: Int) {
         self.time = time
         self.minute = minute
+    }
+}
+
+public struct SpecialScheduleInfo: Codable, Identifiable, Hashable {
+    public var id: String { date }
+    public let date: String
+    public let description: String
+    public let type: String
+    
+    public init(date: String, description: String, type: String) {
+        self.date = date
+        self.description = description
+        self.type = type
     }
 }
