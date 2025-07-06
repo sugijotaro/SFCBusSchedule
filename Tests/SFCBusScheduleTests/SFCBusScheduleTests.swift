@@ -65,7 +65,7 @@ final class SFCBusScheduleTests {
       }
     ]
     """.data(using: .utf8)!
-
+    
     @Test func testDecodeBusSchedule() async throws {
         let schedules = try JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
         #expect(schedules.count == 1)
@@ -83,7 +83,7 @@ final class SFCBusScheduleTests {
         #expect(schedule.sfcDirection == .toSFC)
         #expect(schedule.metadata.stops.count == 5)
     }
-
+    
     @Test func testDecodeSpecialScheduleType() throws {
         let specialJson = """
         "special_20250705"
@@ -101,7 +101,7 @@ final class SFCBusScheduleTests {
         let encodedWeekdayString = String(data: encodedWeekdayData, encoding: .utf8)
         #expect(encodedWeekdayString == "\"weekday\"")
     }
-
+    
     @Test func testDecodeSpecialScheduleInfo() throws {
         let mockInfoJSON = """
         [
@@ -118,7 +118,7 @@ final class SFCBusScheduleTests {
         #expect(info[0].date == "2025-07-05")
         #expect(info[0].type == "special_20250705")
     }
-
+    
     @Test func testMakeURL() {
         let regularURL = SFCBusScheduleAPI.makeURL(direction: .fromSFC, type: .regular(.weekday))
         #expect(regularURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/from_sfc_weekday.json")
@@ -129,7 +129,7 @@ final class SFCBusScheduleTests {
         let metaURL = SFCBusScheduleAPI.makeSpecialSchedulesURL()
         #expect(metaURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/special_schedules.json")
     }
-
+    
     @Test func testBusScheduleResponse() {
         let schedules = try? JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
         #expect(schedules != nil)

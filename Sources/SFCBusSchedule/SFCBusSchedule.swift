@@ -61,7 +61,7 @@ public struct SFCBusScheduleAPI {
         }
         return schedules
     }
-
+    
     public static func makeURL(direction: BusDirection, type: BusScheduleType) -> URL? {
         URL(string: "\(baseURL)/flat/\(direction.rawValue)_\(type.pathComponent).json")
     }
@@ -69,7 +69,7 @@ public struct SFCBusScheduleAPI {
     public static func makeSpecialSchedulesURL() -> URL? {
         URL(string: "\(baseURL)/special_schedules.json")
     }
-
+    
     private static func fetchData<T: Decodable>(from url: URL) async throws -> T {
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -83,14 +83,14 @@ public struct SFCBusScheduleAPI {
             throw BusScheduleError.networkError(error)
         }
     }
-
+    
     public static func fetchSpecialSchedules() async throws -> [SpecialScheduleInfo] {
         guard let url = makeSpecialSchedulesURL() else {
             throw BusScheduleError.invalidURL
         }
         return try await fetchData(from: url)
     }
-
+    
     public static func fetchSchedule(
         direction: BusDirection,
         type: BusScheduleType
@@ -121,7 +121,7 @@ public struct SFCBusScheduleAPI {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
-
+        
         if let specialInfo = specialSchedules?.first(where: { $0.date == dateString }) {
             return try await fetchSchedule(direction: direction, type: .special(specialInfo.type))
         } else {
