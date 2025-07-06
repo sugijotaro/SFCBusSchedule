@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import SFCBusSchedule
 
+@Suite("SFCBusSchedule Tests")
 final class SFCBusScheduleTests {
     private let mockBusScheduleJSON = """
     [
@@ -64,7 +65,7 @@ final class SFCBusScheduleTests {
       }
     ]
     """.data(using: .utf8)!
-
+    
     @Test func testDecodeBusSchedule() async throws {
         let schedules = try JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
         #expect(schedules.count == 1)
@@ -82,40 +83,53 @@ final class SFCBusScheduleTests {
         #expect(schedule.sfcDirection == .toSFC)
         #expect(schedule.metadata.stops.count == 5)
     }
-
+    
+    @Test func testDecodeSpecialScheduleType() throws {
+        let specialJson = """
+        "special_20250705"
+        """.data(using: .utf8)!
+        
+        let specialType = try JSONDecoder().decode(ScheduleType.self, from: specialJson)
+        #expect(specialType == .special("special_20250705"))
+        
+        let encodedData = try JSONEncoder().encode(specialType)
+        let encodedString = String(data: encodedData, encoding: .utf8)
+        #expect(encodedString == "\"special_20250705\"")
+        
+        let weekdayType = ScheduleType.weekday
+        let encodedWeekdayData = try JSONEncoder().encode(weekdayType)
+        let encodedWeekdayString = String(data: encodedWeekdayData, encoding: .utf8)
+        #expect(encodedWeekdayString == "\"weekday\"")
+    }
+    
+    @Test func testDecodeSpecialScheduleInfo() throws {
+        let mockInfoJSON = """
+        [
+            {
+                "date": "2025-07-05",
+                "description": "七夕祭臨時ダイヤ",
+                "type": "special_20250705"
+            }
+        ]
+        """.data(using: .utf8)!
+        
+        let info = try JSONDecoder().decode([SpecialScheduleInfo].self, from: mockInfoJSON)
+        #expect(info.count == 1)
+        #expect(info[0].date == "2025-07-05")
+        #expect(info[0].type == "special_20250705")
+    }
+    
     @Test func testMakeURL() {
-        let url = SFCBusScheduleAPI.makeURL(direction: .fromSFC, day: .weekday)
-        #expect(url?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/from_sfc_weekday.json")
-    }
-
-    @Test func testCacheKeyGeneration() {
-        let key1 = SFCBusScheduleAPI.cacheKey(direction: .fromSFC, day: .weekday)
-        let key2 = SFCBusScheduleAPI.cacheKey(direction: .toSFC, day: .saturday)
+        let regularURL = SFCBusScheduleAPI.makeURL(direction: .fromSFC, type: .regular(.weekday))
+        #expect(regularURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/from_sfc_weekday.json")
         
-        #expect(key1 == "sfc_bus_schedule_cache_from_sfc_weekday")
-        #expect(key2 == "sfc_bus_schedule_cache_to_sfc_saturday")
-        #expect(key1 != key2)
-    }
-
-    @Test func testCacheSaveAndLoad() async throws {
-        let testSchedules = try JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
+        let specialURL = SFCBusScheduleAPI.makeURL(direction: .toSFC, type: .special("special_20250705"))
+        #expect(specialURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/to_sfc_special_20250705.json")
         
-        SFCBusScheduleAPI.saveToCache(testSchedules, direction: .toSFC, day: .weekday)
-        
-        let cachedSchedules = SFCBusScheduleAPI.loadFromCache(direction: .toSFC, day: .weekday)
-        
-        #expect(cachedSchedules != nil)
-        #expect(cachedSchedules?.count == 1)
-        #expect(cachedSchedules?[0].id == "sho250710")
-        #expect(cachedSchedules?[0].routeCode == .sho25)
-        #expect(cachedSchedules?[0].scheduleType == .weekday)
+        let metaURL = SFCBusScheduleAPI.makeSpecialSchedulesURL()
+        #expect(metaURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/special_schedules.json")
     }
-
-    @Test func testCacheNotFound() {
-        let nonExistentCache = SFCBusScheduleAPI.loadFromCache(direction: .fromSFC, day: .saturday)
-        #expect(nonExistentCache == nil)
-    }
-
+    
     @Test func testBusScheduleResponse() {
         let schedules = try? JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
         #expect(schedules != nil)

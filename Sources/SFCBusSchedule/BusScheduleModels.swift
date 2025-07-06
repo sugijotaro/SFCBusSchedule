@@ -1,15 +1,41 @@
 import Foundation
 
-public enum ScheduleType: String, Codable {
+public enum ScheduleType: Codable, Hashable {
     case weekday
     case saturday
     case sunday
+    case special(String)
     case unknown
-
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
-        self = ScheduleType(rawValue: rawValue) ?? .unknown
+        switch rawValue {
+        case "weekday": self = .weekday
+        case "saturday": self = .saturday
+        case "sunday": self = .sunday
+        default:
+            if rawValue.starts(with: "special_") {
+                self = .special(rawValue)
+            } else {
+                self = .unknown
+            }
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(stringValue)
+    }
+    
+    public var stringValue: String {
+        switch self {
+        case .weekday: return "weekday"
+        case .saturday: return "saturday"
+        case .sunday: return "sunday"
+        case .special(let type): return type
+        case .unknown: return "unknown"
+        }
     }
 }
 
@@ -20,7 +46,7 @@ public enum RouteCode: String, Codable {
     case sho25 = "sho25"
     case sho28 = "sho28"
     case unknown
-
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
@@ -41,7 +67,7 @@ public struct BusSchedule: Codable, Identifiable {
     public let via: String
     public let sfcDirection: BusDirection
     public let metadata: Metadata
-
+    
     enum CodingKeys: String, CodingKey {
         case id
         case time
@@ -56,7 +82,7 @@ public struct BusSchedule: Codable, Identifiable {
         case sfcDirection = "sfc_direction"
         case metadata
     }
-
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -72,7 +98,7 @@ public struct BusSchedule: Codable, Identifiable {
         sfcDirection = try container.decode(BusDirection.self, forKey: .sfcDirection)
         metadata = try container.decode(Metadata.self, forKey: .metadata)
     }
-
+    
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -88,7 +114,7 @@ public struct BusSchedule: Codable, Identifiable {
         try container.encode(sfcDirection, forKey: .sfcDirection)
         try container.encode(metadata, forKey: .metadata)
     }
-
+    
     public init(
         id: String,
         time: Int,
@@ -120,7 +146,7 @@ public struct BusSchedule: Codable, Identifiable {
 
 public struct Metadata: Codable {
     public let stops: [Stop]
-
+    
     public init(stops: [Stop]) {
         self.stops = stops
     }
@@ -130,13 +156,13 @@ public struct Stop: Codable {
     public let name: String
     public let cumulativeTime: Int
     public let arrival: Arrival
-
+    
     enum CodingKeys: String, CodingKey {
         case name
         case cumulativeTime = "cumulative_time"
         case arrival
     }
-
+    
     public init(name: String, cumulativeTime: Int, arrival: Arrival) {
         self.name = name
         self.cumulativeTime = cumulativeTime
@@ -147,9 +173,22 @@ public struct Stop: Codable {
 public struct Arrival: Codable {
     public let time: Int
     public let minute: Int
-
+    
     public init(time: Int, minute: Int) {
         self.time = time
         self.minute = minute
+    }
+}
+
+public struct SpecialScheduleInfo: Codable, Identifiable, Hashable {
+    public var id: String { date }
+    public let date: String
+    public let description: String
+    public let type: String
+    
+    public init(date: String, description: String, type: String) {
+        self.date = date
+        self.description = description
+        self.type = type
     }
 }

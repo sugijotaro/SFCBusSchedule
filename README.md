@@ -5,9 +5,11 @@ SFCBusScheduleは、慶應義塾大学湘南藤沢キャンパス（SFC）のバ
 ## 機能
 
 - バス時刻表の取得（行き／帰り、平日／土曜日／日曜日）
+- 臨時ダイヤの自動判定と取得
 - Codableに準拠したデータモデル
 - 非同期データ取得（async/await）
 - エラーハンドリング
+- キャッシュ機能
 
 ## データソース
 
@@ -27,17 +29,48 @@ dependencies: [
 
 ## 使用方法
 
+### 日付を指定して時刻表を取得（推奨）
+指定した日付の時刻表を取得します。ライブラリが自動で臨時ダイヤの有無を判断し、最適な時刻表を返します。
+
 ```swift
 import SFCBusSchedule
+import Foundation
 
-// バス時刻表の取得
-let schedules = try await SFCBusScheduleAPI.fetchSchedule(
-    direction: .fromSFC,
-    day: .weekday
-)
+do {
+    // 今日の日付のSFC行きバス時刻表を取得
+    let response = try await SFCBusScheduleAPI.fetchSchedule(
+        for: Date(), 
+        direction: .toSFC
+    )
 
-// 取得したデータの利用
-for schedule in schedules {
-    print("\(schedule.time):\(schedule.minute) \(schedule.name)")
+    // 取得したデータの利用
+    for schedule in response.schedules {
+        print("\(schedule.time):\(String(format: "%02d", schedule.minute)) \(schedule.name)")
+    }
+    print("Data source: \(response.source)")
+    
+} catch {
+    print("Error fetching schedule: \(error)")
 }
+```
+
+### 臨時ダイヤの情報を取得
+利用可能な臨時ダイヤのリストを取得できます。
+
+```swift
+let specialSchedules = try await SFCBusScheduleAPI.fetchSpecialSchedules()
+for info in specialSchedules {
+    print("臨時ダイヤ情報: \(info.date) - \(info.description)")
+}
+```
+
+### 曜日を指定して通常ダイヤを取得（旧来の方法）
+臨時ダイヤを考慮せず、特定の曜日の時刻表を取得します。
+
+```swift
+// 土曜日のSFC発バス時刻表を取得
+let response = try await SFCBusScheduleAPI.fetchSchedule(
+    direction: .fromSFC,
+    type: .regular(.saturday)
+)
 ```
