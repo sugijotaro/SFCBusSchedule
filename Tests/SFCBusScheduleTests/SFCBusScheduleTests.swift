@@ -124,7 +124,7 @@ final class SFCBusScheduleTests {
         #expect(regularURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/from_sfc_weekday.json")
         
         let specialURL = SFCBusScheduleAPI.makeURL(direction: .toSFC, type: .special("special_20250705"))
-        #expect(specialURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/flat/to_sfc_special_20250705.json")
+        #expect(specialURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/special/special_20250705/to_sfc.json")
         
         let metaURL = SFCBusScheduleAPI.makeSpecialSchedulesURL()
         #expect(metaURL?.absoluteString == "https://sugijotaro.github.io/sfc-bus-schedule/data/v1/special_schedules.json")

@@ -70,7 +70,14 @@ public struct SFCBusScheduleAPI {
     }
     
     public static func makeURL(direction: BusDirection, type: BusScheduleType) -> URL? {
-        URL(string: "\(baseURL)/flat/\(direction.rawValue)_\(type.pathComponent).json")
+        switch type {
+        case .special(let specialType):
+            // specialの場合: /special/{type}/{direction}.json
+            return URL(string: "\(baseURL)/special/\(specialType)/\(direction.rawValue).json")
+        case .regular:
+            // regularの場合: /flat/{direction}_{type}.json
+            return URL(string: "\(baseURL)/flat/\(direction.rawValue)_\(type.pathComponent).json")
+        }
     }
     
     public static func makeSpecialSchedulesURL() -> URL? {
