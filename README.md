@@ -30,7 +30,7 @@ dependencies: [
 ## 使用方法
 
 ### 日付を指定して時刻表を取得（推奨）
-指定した日付の時刻表を取得します。ライブラリが自動で臨時ダイヤの有無を判断し、最適な時刻表を返します。
+指定した日付の時刻表を取得します。ライブラリが自動で臨時ダイヤの有無を判断し、臨時ダイヤ情報を含んだレスポンスを返します。
 
 ```swift
 import SFCBusSchedule
@@ -43,11 +43,20 @@ do {
         direction: .toSFC
     )
 
+    // 臨時ダイヤ情報をチェック
+    if let specialInfo = response.specialInfo {
+        print("本日は臨時ダイヤです: \(specialInfo.description)")
+    }
+
     // 取得したデータの利用
     for schedule in response.schedules {
         print("\(schedule.time):\(String(format: "%02d", schedule.minute)) \(schedule.name)")
+        
+        // 特定の日付の出発時刻を計算
+        if let departureDate = schedule.departureDate(basedOn: Date()) {
+            print("出発時刻: \(departureDate)")
+        }
     }
-    print("Data source: \(response.source)")
     
 } catch {
     print("Error fetching schedule: \(error)")
@@ -68,9 +77,22 @@ for info in specialSchedules {
 臨時ダイヤを考慮せず、特定の曜日の時刻表を取得します。
 
 ```swift
-// 土曜日のSFC発バス時刻表を取得
+// 土曜日のSFC発バス時刻表を取得（非推奨）
 let response = try await SFCBusScheduleAPI.fetchSchedule(
     direction: .fromSFC,
-    type: .regular(.saturday)
+    day: .saturday
 )
+```
+
+### ヘルパーメソッド
+
+#### 出発時刻の計算
+各バススケジュールから、特定の日付での出発時刻を計算できます。
+
+```swift
+let schedule = // BusScheduleインスタンス
+let targetDate = Date() // 対象日
+if let departureDate = schedule.departureDate(basedOn: targetDate) {
+    print("このバスは \(departureDate) に出発します")
+}
 ```

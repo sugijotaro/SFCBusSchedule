@@ -141,5 +141,44 @@ final class SFCBusScheduleTests {
         #expect(cacheResponse.schedules.count == 1)
         #expect(liveResponse.source == .live)
         #expect(cacheResponse.source == .cache)
+        #expect(liveResponse.specialInfo == nil)
+        #expect(cacheResponse.specialInfo == nil)
+    }
+    
+    @Test func testDepartureDateBasedOn() throws {
+        let schedules = try JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
+        let schedule = schedules[0]
+        
+        let calendar = Calendar.current
+        var dateComponents = DateComponents()
+        dateComponents.year = 2025
+        dateComponents.month = 7
+        dateComponents.day = 5
+        let baseDate = calendar.date(from: dateComponents)!
+        
+        let departureDate = schedule.departureDate(basedOn: baseDate)
+        #expect(departureDate != nil)
+        
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: departureDate!)
+        #expect(components.year == 2025)
+        #expect(components.month == 7)
+        #expect(components.day == 5)
+        #expect(components.hour == 7)
+        #expect(components.minute == 10)
+    }
+    
+    @Test func testBusScheduleResponseWithSpecialInfo() {
+        let schedules = try? JSONDecoder().decode([BusSchedule].self, from: mockBusScheduleJSON)
+        #expect(schedules != nil)
+        
+        let specialInfo = SpecialScheduleInfo(date: "2025-07-05", description: "テスト臨時ダイヤ", type: "special_20250705")
+        let responseWithSpecial = BusScheduleResponse(schedules: schedules!, source: .live, specialInfo: specialInfo)
+        
+        #expect(responseWithSpecial.schedules.count == 1)
+        #expect(responseWithSpecial.source == .live)
+        #expect(responseWithSpecial.specialInfo != nil)
+        #expect(responseWithSpecial.specialInfo?.date == "2025-07-05")
+        #expect(responseWithSpecial.specialInfo?.description == "テスト臨時ダイヤ")
+        #expect(responseWithSpecial.specialInfo?.type == "special_20250705")
     }
 }

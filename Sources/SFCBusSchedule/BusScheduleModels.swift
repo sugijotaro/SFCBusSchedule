@@ -192,3 +192,14 @@ public struct SpecialScheduleInfo: Codable, Identifiable, Hashable {
         self.type = type
     }
 }
+
+extension BusSchedule {
+    public func departureDate(basedOn referenceDate: Date) -> Date? {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+        components.hour = self.time
+        components.minute = self.minute
+        components.second = 0
+        return calendar.date(from: components)
+    }
+}
