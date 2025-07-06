@@ -131,10 +131,10 @@ public struct SFCBusScheduleAPI {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
-
+        
         let scheduleType: BusScheduleType
         let specialInfo: SpecialScheduleInfo?
-
+        
         // 2. 指定日が臨時ダイヤに該当するかチェック
         if let info = allSpecialSchedules?.first(where: { $0.date == dateString }) {
             scheduleType = .special(info.type)
