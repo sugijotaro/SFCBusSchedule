@@ -36,13 +36,39 @@ dependencies: [
 import SFCBusSchedule
 import Foundation
 
-do {
-    // 今日の日付のSFC行きバス時刻表を取得
-    let response = try await SFCBusScheduleAPI.fetchSchedule(
-        for: Date(), 
-        direction: .toSFC
-    )
+func updateSchedule() {
+    Task {
+        do {
+            let stream = SFCBusScheduleAPI.scheduleStream(
+                for: Date(), 
+                direction: .toSFC
+            )
 
+            // ストリームから流れてくるレスポンスをループで受け取る
+            for try await response in stream {
+                // レスポンスのsourceプロパティでキャッシュかライブデータかを判定
+                switch response.source {
+                case .cache:
+                    print("--- Cache Data Received ---")
+                    // まずキャッシュデータでUIを素早く表示
+                    self.displaySchedule(response) 
+                case .live:
+                    print("--- Live Data Received ---")
+                    // 次に最新データでUIをリフレッシュ
+                    self.displaySchedule(response)
+                }
+            }
+            print("--- Stream Finished ---")
+
+        } catch {
+            // ネットワークエラーなどで最新データが取得できなかった場合
+            print("Error updating schedule: \(error)")
+            // ユーザーにエラーを通知するUI処理
+        }
+    }
+}
+
+func displaySchedule(_ response: BusScheduleResponse) {
     // 臨時ダイヤ情報をチェック
     if let specialInfo = response.specialInfo {
         print("本日は臨時ダイヤです: \(specialInfo.description)")
@@ -51,16 +77,12 @@ do {
     // 取得したデータの利用
     for schedule in response.schedules {
         print("\(schedule.time):\(String(format: "%02d", schedule.minute)) \(schedule.name)")
-        
-        // 特定の日付の出発時刻を計算
-        if let departureDate = schedule.departureDate(basedOn: Date()) {
-            print("出発時刻: \(departureDate)")
-        }
     }
-    
-} catch {
-    print("Error fetching schedule: \(error)")
 }
+
+// 実行例
+// updateSchedule()
+
 ```
 
 ### 臨時ダイヤの情報を取得

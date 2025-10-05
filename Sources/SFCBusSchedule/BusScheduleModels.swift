@@ -1,5 +1,35 @@
 import Foundation
 
+public enum BusDirection: String, Codable {
+    case fromSFC = "from_sfc"
+    case toSFC = "to_sfc"
+}
+
+public enum ScheduleDay: String, Codable {
+    case weekday
+    case saturday
+    case sunday
+}
+
+public enum BusScheduleType: Hashable {
+    case regular(ScheduleDay)
+    case special(String)
+    
+    public var pathComponent: String {
+        switch self {
+        case .regular(let day): return day.rawValue
+        case .special(let type): return type
+        }
+    }
+}
+
+public enum BusScheduleError: Error {
+    case invalidURL
+    case networkError(any Error)
+    case decodingError(any Error)
+    case noScheduleForDate
+}
+
 public enum ScheduleType: Codable, Hashable {
     case weekday
     case saturday
@@ -190,6 +220,23 @@ public struct SpecialScheduleInfo: Codable, Identifiable, Hashable {
         self.date = date
         self.description = description
         self.type = type
+    }
+}
+
+public enum DataSource: String, Codable {
+    case live
+    case cache
+}
+
+public struct BusScheduleResponse: Codable {
+    public let schedules: [BusSchedule]
+    public var source: DataSource
+    public let specialInfo: SpecialScheduleInfo?
+    
+    public init(schedules: [BusSchedule], source: DataSource, specialInfo: SpecialScheduleInfo? = nil) {
+        self.schedules = schedules
+        self.source = source
+        self.specialInfo = specialInfo
     }
 }
 

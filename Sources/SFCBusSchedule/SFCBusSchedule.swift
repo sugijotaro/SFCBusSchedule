@@ -1,72 +1,41 @@
 import Foundation
 
-public enum BusDirection: String, Codable {
-    case fromSFC = "from_sfc"
-    case toSFC = "to_sfc"
-}
-
-public enum ScheduleDay: String {
-    case weekday
-    case saturday
-    case sunday
-}
-
-public enum BusScheduleType {
-    case regular(ScheduleDay)
-    case special(String)
-    
-    var pathComponent: String {
-        switch self {
-        case .regular(let day): return day.rawValue
-        case .special(let type): return type
-        }
-    }
-}
-
-public enum BusScheduleError: Error {
-    case invalidURL
-    case networkError(any Error)
-    case decodingError(any Error)
-    case noScheduleForDate
-}
-
-public enum DataSource: String, Codable {
-    case live
-    case cache
-}
-
-public struct BusScheduleResponse: Codable {
-    public let schedules: [BusSchedule]
-    public let source: DataSource
-    public let specialInfo: SpecialScheduleInfo?
-    
-    public init(schedules: [BusSchedule], source: DataSource, specialInfo: SpecialScheduleInfo? = nil) {
-        self.schedules = schedules
-        self.source = source
-        self.specialInfo = specialInfo
-    }
-}
-
 public struct SFCBusScheduleAPI {
     private static let baseURL = "https://sugijotaro.github.io/sfc-bus-schedule/data/v1"
     private static let cacheKeyPrefix = "sfc_bus_schedule_cache_"
     
-    private static func cacheKey(direction: BusDirection, type: BusScheduleType) -> String {
-        return "\(cacheKeyPrefix)\(direction.rawValue)_\(type.pathComponent)"
+    private static func cacheFileURL(direction: BusDirection, type: BusScheduleType) -> URL? {
+        guard let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let fileName = "\(cacheKeyPrefix)\(direction.rawValue)_\(type.pathComponent).json"
+        return cacheDirectory.appendingPathComponent(fileName)
     }
     
     private static func saveToCache(_ response: BusScheduleResponse, direction: BusDirection, type: BusScheduleType) {
+        guard let fileURL = cacheFileURL(direction: direction, type: type) else { return }
+        
+        let directoryURL = fileURL.deletingLastPathComponent()
+        if !FileManager.default.fileExists(atPath: directoryURL.path) {
+            try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+        }
+
         if let encoded = try? JSONEncoder().encode(response) {
-            UserDefaults.standard.set(encoded, forKey: cacheKey(direction: direction, type: type))
+            try? encoded.write(to: fileURL)
         }
     }
     
     private static func loadFromCache(direction: BusDirection, type: BusScheduleType) -> BusScheduleResponse? {
-        guard let data = UserDefaults.standard.data(forKey: cacheKey(direction: direction, type: type)),
-              let response = try? JSONDecoder().decode(BusScheduleResponse.self, from: data) else {
+        guard let fileURL = cacheFileURL(direction: direction, type: type),
+              let data = try? Data(contentsOf: fileURL) else {
             return nil
         }
-        return response
+        
+        if var response = try? JSONDecoder().decode(BusScheduleResponse.self, from: data) {
+            response.source = .cache
+            return response
+        }
+        return nil
     }
     
     public static func makeURL(direction: BusDirection, type: BusScheduleType) -> URL? {
@@ -105,6 +74,61 @@ public struct SFCBusScheduleAPI {
         return try await fetchData(from: url)
     }
     
+    public static func scheduleStream(
+        for date: Date,
+        direction: BusDirection,
+        calendar: Calendar = .current
+    ) -> AsyncThrowingStream<BusScheduleResponse, Error> {
+        return AsyncThrowingStream { continuation in
+            Task {
+                let allSpecialSchedules = try? await fetchSpecialSchedules()
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                let dateString = dateFormatter.string(from: date)
+                
+                let scheduleType: BusScheduleType
+                let specialInfo: SpecialScheduleInfo?
+                
+                if let info = allSpecialSchedules?.first(where: { $0.date == dateString }) {
+                    scheduleType = .special(info.type)
+                    specialInfo = info
+                } else {
+                    let weekday = calendar.component(.weekday, from: date)
+                    let day: ScheduleDay
+                    switch weekday {
+                    case 1: day = .sunday
+                    case 7: day = .saturday
+                    default: day = .weekday
+                    }
+                    scheduleType = .regular(day)
+                    specialInfo = nil
+                }
+
+                if let cachedResponse = loadFromCache(direction: direction, type: scheduleType) {
+                    continuation.yield(cachedResponse)
+                }
+
+                do {
+                    guard let url = makeURL(direction: direction, type: scheduleType) else {
+                        throw BusScheduleError.invalidURL
+                    }
+                    
+                    let schedules: [BusSchedule] = try await fetchData(from: url)
+                    let liveResponse = BusScheduleResponse(schedules: schedules, source: .live, specialInfo: specialInfo)
+                    
+                    continuation.yield(liveResponse)
+                    
+                    saveToCache(liveResponse, direction: direction, type: scheduleType)
+                    
+                    continuation.finish()
+                    
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+    
     private static func fetchAndPackageSchedule(
         direction: BusDirection,
         type: BusScheduleType,
@@ -127,40 +151,16 @@ public struct SFCBusScheduleAPI {
         }
     }
     
+    @available(*, deprecated, message: "Use scheduleStream(for:direction:) instead.")
     public static func fetchSchedule(
         for date: Date,
         direction: BusDirection,
         calendar: Calendar = .current
     ) async throws -> BusScheduleResponse {
-        // 1. 臨時ダイヤ情報を先に取得
-        let allSpecialSchedules = try? await fetchSpecialSchedules()
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let dateString = dateFormatter.string(from: date)
-        
-        let scheduleType: BusScheduleType
-        let specialInfo: SpecialScheduleInfo?
-        
-        // 2. 指定日が臨時ダイヤに該当するかチェック
-        if let info = allSpecialSchedules?.first(where: { $0.date == dateString }) {
-            scheduleType = .special(info.type)
-            specialInfo = info
-        } else {
-            // 3. 該当しない場合は曜日から通常ダイヤを判断
-            let weekday = calendar.component(.weekday, from: date)
-            let day: ScheduleDay
-            switch weekday {
-            case 1: day = .sunday
-            case 7: day = .saturday
-            default: day = .weekday
-            }
-            scheduleType = .regular(day)
-            specialInfo = nil
+        for try await response in scheduleStream(for: date, direction: direction, calendar: calendar) {
+            return response
         }
-        
-        // 4. 決定したダイヤ種別で時刻表を取得
-        return try await fetchAndPackageSchedule(direction: direction, type: scheduleType, specialInfo: specialInfo)
+        throw BusScheduleError.noScheduleForDate
     }
     
     @available(*, deprecated, message: "Use fetchSchedule(for:direction:) instead for automatic special schedule handling.")
