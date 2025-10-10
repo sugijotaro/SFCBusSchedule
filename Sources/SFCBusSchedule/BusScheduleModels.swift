@@ -1,12 +1,42 @@
 import Foundation
 
-public enum ScheduleType: Codable, Hashable {
+public enum BusDirection: String, Codable, Sendable {
+    case fromSFC = "from_sfc"
+    case toSFC = "to_sfc"
+}
+
+public enum ScheduleDay: String, Codable, Sendable {
+    case weekday
+    case saturday
+    case sunday
+}
+
+public enum BusScheduleType: Hashable, Sendable {
+    case regular(ScheduleDay)
+    case special(String)
+
+    public var pathComponent: String {
+        switch self {
+        case .regular(let day): return day.rawValue
+        case .special(let type): return type
+        }
+    }
+}
+
+public enum BusScheduleError: Error {
+    case invalidURL
+    case networkError(any Error)
+    case decodingError(any Error)
+    case noScheduleForDate
+}
+
+public enum ScheduleType: Codable, Hashable, Sendable {
     case weekday
     case saturday
     case sunday
     case special(String)
     case unknown
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
@@ -22,12 +52,12 @@ public enum ScheduleType: Codable, Hashable {
             }
         }
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(stringValue)
     }
-    
+
     public var stringValue: String {
         switch self {
         case .weekday: return "weekday"
@@ -39,14 +69,14 @@ public enum ScheduleType: Codable, Hashable {
     }
 }
 
-public enum RouteCode: String, Codable {
+public enum RouteCode: String, Codable, Sendable {
     case sho19 = "sho19"
     case sho23 = "sho23"
     case sho24 = "sho24"
     case sho25 = "sho25"
     case sho28 = "sho28"
     case unknown
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
@@ -54,7 +84,7 @@ public enum RouteCode: String, Codable {
     }
 }
 
-public struct BusSchedule: Codable, Identifiable {
+public struct BusSchedule: Codable, Identifiable, Sendable {
     public let id: String
     public let time: Int
     public let minute: Int
@@ -67,7 +97,7 @@ public struct BusSchedule: Codable, Identifiable {
     public let via: String
     public let sfcDirection: BusDirection
     public let metadata: Metadata
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case time
@@ -82,7 +112,7 @@ public struct BusSchedule: Codable, Identifiable {
         case sfcDirection = "sfc_direction"
         case metadata
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -98,7 +128,7 @@ public struct BusSchedule: Codable, Identifiable {
         sfcDirection = try container.decode(BusDirection.self, forKey: .sfcDirection)
         metadata = try container.decode(Metadata.self, forKey: .metadata)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -114,7 +144,7 @@ public struct BusSchedule: Codable, Identifiable {
         try container.encode(sfcDirection, forKey: .sfcDirection)
         try container.encode(metadata, forKey: .metadata)
     }
-    
+
     public init(
         id: String,
         time: Int,
@@ -144,25 +174,25 @@ public struct BusSchedule: Codable, Identifiable {
     }
 }
 
-public struct Metadata: Codable {
+public struct Metadata: Codable, Sendable {
     public let stops: [Stop]
-    
+
     public init(stops: [Stop]) {
         self.stops = stops
     }
 }
 
-public struct Stop: Codable {
+public struct Stop: Codable, Sendable {
     public let name: String
     public let cumulativeTime: Int
     public let arrival: Arrival
-    
+
     enum CodingKeys: String, CodingKey {
         case name
         case cumulativeTime = "cumulative_time"
         case arrival
     }
-    
+
     public init(name: String, cumulativeTime: Int, arrival: Arrival) {
         self.name = name
         self.cumulativeTime = cumulativeTime
@@ -170,26 +200,43 @@ public struct Stop: Codable {
     }
 }
 
-public struct Arrival: Codable {
+public struct Arrival: Codable, Sendable {
     public let time: Int
     public let minute: Int
-    
+
     public init(time: Int, minute: Int) {
         self.time = time
         self.minute = minute
     }
 }
 
-public struct SpecialScheduleInfo: Codable, Identifiable, Hashable {
+public struct SpecialScheduleInfo: Codable, Identifiable, Hashable, Sendable {
     public var id: String { date }
     public let date: String
     public let description: String
     public let type: String
-    
+
     public init(date: String, description: String, type: String) {
         self.date = date
         self.description = description
         self.type = type
+    }
+}
+
+public enum DataSource: String, Codable, Sendable {
+    case live
+    case cache
+}
+
+public struct BusScheduleResponse: Codable, Sendable {
+    public let schedules: [BusSchedule]
+    public var source: DataSource
+    public let specialInfo: SpecialScheduleInfo?
+
+    public init(schedules: [BusSchedule], source: DataSource, specialInfo: SpecialScheduleInfo? = nil) {
+        self.schedules = schedules
+        self.source = source
+        self.specialInfo = specialInfo
     }
 }
 
